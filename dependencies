@@ -1,0 +1,37 @@
+#!/bin/bash
+
+#Install dependencies
+
+
+#These are required to build the daemon. It also installs docker and python package manageer.
+sudo apt-add-repository ppa:bitcoin/bitcoin -y
+
+sudo apt-get update
+sudo apt-get install git build-essential g++ libssl-dev libboost-all-dev libdb4.8++-dev libqrencode-dev qt4-qmake libqt4-dev libcurl4-openssl-dev python-pip curl -y
+
+#Install latest docker
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+curl -sSL https://get.docker.com/ubuntu/ | sudo sh
+source /etc/bash_completion.d/docker.io
+
+#Install Mini-UPnPC
+cd ~
+mkdir miniupnpcInstall
+cd miniupnpcInstall
+wget "http://miniupnp.tuxfamily.org/files/download.php?file=miniupnpc-1.9.tar.gz"
+tar -zxvf download.php?file=miniupnpc-1.9.tar.gz
+cd miniupnpc-1.9/
+sudo make install
+
+cd ~
+rm -rf ~/miniupnpc
+
+#Upgrade python package manager then install bitcoinrpc and docker python libraries
+sudo pip install --upgrade pip
+sudo pip install python-bitcoinrpc docker-py simplejson
+
+#Use docker without sudo
+sudo groupadd docker
+sudo gpasswd -a ${USER} docker
+sudo service docker.io restart
+newgrp docker

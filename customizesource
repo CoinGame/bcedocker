@@ -1,0 +1,135 @@
+#!/bin/bash
+
+#########USAGE FOR AUTOBUILDBLOCKCHAIN #########
+#You must provide the full path to the clone nubits repo as the first parameter
+#You must update the variable values below this section with the values that are to be substituted into the source code
+
+#EXAMPLE: sudo ABB.sh ~/<Nubits Repo Clone Dir>
+
+#STATIC SOURCE VARS - This section is where you will put the existing values from the source. Meaning, The values that we are searching for in the code to replace
+srcHashGenesisBlockOfficial="static const uint256 hashGenesisBlockOfficial("
+srcOfficialNonce="        unsigned int nNonceGenesis="
+srcTimeGenesisOfficial="        unsigned int nTimeGenesis="
+srcPszTimestampOfficial=" pszTimestamp = "
+srcMerkleRootOfficial="5f6d3c86c39f07715fb73cc5cf3a8a11a59f4e6b77547675f519a4a5d11f4a1a"
+srcDataDir="    return pathRet / \".bcexchange\";"
+newDataDir="    return pathRet / \".bceTESTING\";"
+
+
+#Seting some predefined variables to use later
+RegularTimeSwitch=$(date --date='1 day'  --utc)
+EpochTimeSwitch=$(date +%s --date='1 day')
+RegularTime=$(date)
+EpochTime=$(date +%s)
+#Get a big ass random string
+RandomString=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+
+#take in the location to the source as parameter"
+src=$1/src
+if [ -z "$1" ]; then 
+echo "please provide path to folder as parameter" && exit 
+fi #END PATH CHECK
+
+#change working directory to source folder
+cd "$src"
+
+echo \##########################################
+echo \########Creating New Genesis Block########
+echo \##########################################
+sed -i -e "s@$srcPszTimestampOfficial.*@ pszTimestamp = \"$RegularTime $RandomString\";@" \
+-e "s@$srcTimeGenesisOfficial.*@        unsigned int nTimeGenesis=$EpochTime;@" \
+-e "s@$srcOfficialNonce.*@        unsigned int nNonceGenesis=0;@" main.cpp
+
+sed -i -e "s@.*$srcDataDir.*@$newDataDir@" util.cpp
+
+make -f makefile.unix USE_UPNP=-
+
+cd ~
+
+#Create the conf file with the rpcuser and rpcpasswords set
+
+rm -rf ~/.bceTESTING
+
+cd ~
+mkdir -p ~/.bceTESTING
+cd ~/.bceTESTING
+touch bcexchange.conf
+echo rpcuser=safasfasdf >> bcexchange.conf
+echo rpcpassword=asdfasdfadsf >> bcexchange.conf
+
+cd "$src"
+
+./bcexchanged --daemon &
+
+sleep 15
+
+
+#Parsing debug logs for needed strings
+cd ~/.bceTESTING
+
+#Genesis Hash
+officialGenHash=$(cat debug.log | grep "genesis hash")
+IFS='=' read -a OffGenHash <<< "$officialGenHash"
+genHashString="${OffGenHash[1]}"
+
+#Nonce
+officialNonce=$(cat debug.log | grep "nNonce")
+IFS=',' read -a OffNonce <<< "$officialNonce"
+IFS='=' read -a OffNonce2 <<< "${OffNonce[6]}"
+NonceString="${OffNonce2[1]}"
+
+#Merkle Root
+officialMerkleRoot=$(cat debug.log | grep "merkle root")
+IFS='=' read -a OffMerkRoot <<< "$officialMerkleRoot"
+merkRootString="${OffMerkRoot[1]}"
+
+#Now let's parse the testnet debug!!
+
+cd testnet
+
+#Completed parsing debug - begin substitution
+
+cd "$src"
+
+sed -i -e "s@.*$srcHashGenesisBlockOfficial.*@static const uint256 hashGenesisBlockOfficial(\"$genHashString\");@" main.h
+
+sed -i -e "s@.*$srcDataDir.*@$newDataDir@" util.cpp
+
+sed -i -e "s@.*$srcPszTimestampOfficial.*@        const char* pszTimestamp = \"$RegularTime $RandomString\";@" \
+-e "s@.*$srcOfficialNonce.*@        unsigned int nNonceGenesis=$NonceString;@" \
+-e "s@.*$srcTimeGenesisOfficial.*@        unsigned int nTimeGenesis=$EpochTime;@" \
+-e "s@assert(block.hashMerkleRoot == uint256(\"0x$srcMerkleRootOfficial\"));@assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));@" main.cpp
+
+
+#need to fix this so i don't have to update the merkelroot when it changes. All other lines that need to be changed can be found dynamicaly.
+
+#cat main.cpp | tr '\n' '@' | sed -e "s/"@$srcMerkleRootOfficial.*@"/            assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));/1" \
+#-e "s/@$srcMerkleRootTestNet.*@/            assert(block.hashMerkleRoot == uint256(\"0x$merkRootStringTest\"));/2" | tr '@' '\n' > main.cppp
+
+
+make -f makefile.unix USE_UPNP=-
+
+cd ..
+
+#Making the GUI as well
+
+qmake
+
+make USE_UPNP=-
+
+rm -rf ~/.bceTESTING
+
+echo "MerkleRoot= $merkRootString"
+echo "GenHashString= $genHashString"
+echo "NonceString= $NonceString"
+echo "TestMerkleRoot= $merkRootStringTest"
+echo "TestGenHashString= $genHashStringTest"
+echo "TestNonceString= $NonceStringTest"
+
+
+
+
+
+
+
+
