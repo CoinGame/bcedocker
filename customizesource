@@ -113,7 +113,7 @@ cd ..
 
 #Making the GUI as well
 
-qmake
+#qmake
 
 make USE_UPNP=-
 
