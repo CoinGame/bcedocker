@@ -1,0 +1,46 @@
+#!/bin/bash
+
+sudo docker rm -f bcenode1
+sudo docker rm -f bcenode2
+
+sudo docker run --name "bcenode1" -t -d -P nodes
+sudo docker run --name "bcenode2" -t -d -P nodes
+
+cd ~/.bceTESTING
+
+touch bcexchange.conf
+
+echo server=1 > bcexchange.conf
+#echo rpcuser=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) >> nu.conf
+#echo rpcpassword=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) >> nu.conf
+echo rpcuser=user >> bcexchange.conf
+echo rpcpassword=pass >> bcexchange.conf
+#echo testnet=1 >> bcexchange.conf
+echo \#INFO >> bcexchange.conf
+echo \#PROTOCOL PORT 7890 >> bcexchange.conf
+echo \#RPC PORT 14001 >> bcexchange.conf
+echo \#TESTNET PORT      7895 >> bcexchange.conf
+echo \#TESTNET RPC PORT 15001 >> bcexchange.conf
+echo gen=1 >> bcexchange.conf
+echo listen=1 >> bcexchange.conf
+echo \#replace PORT with the docker port number that points to mainnet/testnet protocol port >> bcexchange.conf
+echo \#connect=127.0.0.1:PORT >> bcexchange.conf
+
+testnetProtocolPort=$(sudo docker port bcenode1 2239)
+IFS=':' read -a ExposedTestnetProtocolPort <<< "$testnetProtocolPort"
+tnep="${ExposedTestnetProtocolPort[1]}"
+
+echo "addnode=127.0.0.1:$tnep"
+echo "addnode=127.0.0.1:$tnep" >> bcexchange.conf
+
+testnetProtocolPort=$(sudo docker port bcenode2 2239)
+IFS=':' read -a ExposedTestnetProtocolPort <<< "$testnetProtocolPort"
+tnep="${ExposedTestnetProtocolPort[1]}"
+
+echo "addnode=127.0.0.1:$tnep"
+echo "addnode=127.0.0.1:$tnep" >> bcexchange.conf
+
+sudo docker ps -a
+
+
+
