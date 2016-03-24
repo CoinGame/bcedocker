@@ -15,7 +15,6 @@ srcV4Switch="unsigned int nProtocolV04SwitchTime     = 1406030400; // Tue, 22 Ju
 srcWeightFix="unsigned int nWeightFixSwitchTime = 1408924800; // 2014-08-25 00:00:00 UTC"
 srcDifficulty="    if (CBigNum(hashProofOfStake) > bnCoinDayWeight \* bnTargetPerCoinDay)"
 srcChecsumCheckoint="    if (fTestNet) return true; // Testnet has no checkpoints"
-srcReduceDiff="static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20);"
 srcReduceDiff2="static CBigNum bnInitialHashTarget(~uint256(0) >> 24);"
 
 
@@ -33,8 +32,6 @@ CurDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 RandomString=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 pzTimeStamp="$RegularTime $RandomString"
 
-
-echo $pzTimeStamp
 
 #take in the location to the source as parameter"
 src=$1/src
@@ -112,8 +109,7 @@ sed -i -e "s@.*$srcPszTimestampOfficial.*@        const char* pszTimestamp = \"$
 -e "s@.*$srcOfficialNonce.*@        unsigned int nNonceGenesis=$NonceString;@" \
 -e "s@.*$srcTimeGenesisOfficial.*@        unsigned int nTimeGenesis=$EpochTime;@" \
 -e "s@assert(block.hashMerkleRoot == uint256(\"0x$srcMerkleRootOfficial\"));@assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));@" \
--e "s@.*$srcReduceDiff.*@static CBigNum bnProofOfWorkLimit(~uint256(0) >> 13);@" \
--e "s@.*$srcReduceDiff2.*@static CBigNum bnInitialHashTarget(~uint256(0) >> 19);@" main.cpp
+-e "s@.*$srcReduceDiff2.*@static CBigNum bnInitialHashTarget(~uint256(0) >> 21);@" main.cpp
 
 sed -i -e "s@.*$srcV3Switch.*@unsigned int nProtocolV03SwitchTime     = $EpochTimeSwitch;@" \
 -e "s@.*$srcV4Switch.*@unsigned int nProtocolV04SwitchTime     = $EpochTimeSwitch;@" \
@@ -121,6 +117,12 @@ sed -i -e "s@.*$srcV3Switch.*@unsigned int nProtocolV03SwitchTime     = $EpochTi
 -e "s@.*$srcDifficulty.*@    if ((CBigNum(hashProofOfStake) >> 10) > bnCoinDayWeight \* bnTargetPerCoinDay)@" \
 -e "s@.*$srcWeightFix.*@unsigned int nWeightFixSwitchTime = $EpochTimeSwitch;@" kernel.cpp
 
+sed -i -e "s@.*        ( 400, uint256(\"0000007fc7c821f380229899556b79bc37124c6b0059e3b84bae0df20c1783ba\") )
+.*@@" checkpoints.cpp
+
+sed -i -e "s@.*    0xb40f043e,.*@@" \
+-e "s@.*    0x22828268,.*@@" \
+-e "s@.*    0x4b7109b0,.*@@" net.cpp
 
 #read -p "Start compile of customized binaries"
 
@@ -142,8 +144,6 @@ cd $CurDir
 
 ./buildcontainer
 ./startcontainer
-
-./nu
 
 echo "MerkleRoot= $merkRootString"
 echo "GenHashString= $genHashString"
