@@ -19,7 +19,6 @@ echo server=1 >> bcexchange.conf
 #echo rpcpassword=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) >> nu.conf
 echo rpcuser=user >> bcexchange.conf
 echo rpcpassword=pass >> bcexchange.conf
-echo testnet=1 >> bcexchange.conf
 echo \#INFO >> bcexchange.conf
 echo \#PROTOCOL PORT 7890 >> bcexchange.conf
 echo \#RPC PORT 14001 >> bcexchange.conf

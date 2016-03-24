@@ -4,14 +4,21 @@
 #You must provide the full path to the clone nubits repo as the first parameter
 #You must update the variable values below this section with the values that are to be substituted into the source code
 
-#EXAMPLE: sudo ABB.sh ~/<Nubits Repo Clone Dir>
-
 #STATIC SOURCE VARS - This section is where you will put the existing values from the source. Meaning, The values that we are searching for in the code to replace
 srcHashGenesisBlockOfficial="static const uint256 hashGenesisBlockOfficial("
 srcOfficialNonce="        unsigned int nNonceGenesis="
 srcTimeGenesisOfficial="        unsigned int nTimeGenesis="
 srcPszTimestampOfficial=" pszTimestamp = "
 srcMerkleRootOfficial="5f6d3c86c39f07715fb73cc5cf3a8a11a59f4e6b77547675f519a4a5d11f4a1a"
+srcV3Switch="unsigned int nProtocolV03SwitchTime     = 1405987200; // Tue, 22 Jul 2014 00:00:00 GMT"
+srcV4Switch="unsigned int nProtocolV04SwitchTime     = 1406030400; // Tue, 22 Jul 2014 12:00:00 GMT"
+srcWeightFix="unsigned int nWeightFixSwitchTime = 1408924800; // 2014-08-25 00:00:00 UTC"
+srcDifficulty="    if (CBigNum(hashProofOfStake) > bnCoinDayWeight \* bnTargetPerCoinDay)"
+srcChecsumCheckoint="    if (fTestNet) return true; // Testnet has no checkpoints"
+srcReduceDiff="static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20);"
+srcReduceDiff2="static CBigNum bnInitialHashTarget(~uint256(0) >> 24);"
+
+
 srcDataDir="    return pathRet / \".bcexchange\";"
 newDataDir="    return pathRet / \".bceTESTING\";"
 
@@ -21,8 +28,13 @@ RegularTimeSwitch=$(date --date='1 day'  --utc)
 EpochTimeSwitch=$(date +%s --date='1 day')
 RegularTime=$(date)
 EpochTime=$(date +%s)
+CurDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #Get a big ass random string
 RandomString=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+pzTimeStamp="$RegularTime $RandomString"
+
+
+echo $pzTimeStamp
 
 #take in the location to the source as parameter"
 src=$1/src
@@ -36,7 +48,7 @@ cd "$src"
 echo \##########################################
 echo \########Creating New Genesis Block########
 echo \##########################################
-sed -i -e "s@$srcPszTimestampOfficial.*@ pszTimestamp = \"$RegularTime $RandomString\";@" \
+sed -i -e "s@$srcPszTimestampOfficial.*@ pszTimestamp = \"$pzTimeStamp\";@" \
 -e "s@$srcTimeGenesisOfficial.*@        unsigned int nTimeGenesis=$EpochTime;@" \
 -e "s@$srcOfficialNonce.*@        unsigned int nNonceGenesis=0;@" main.cpp
 
@@ -44,13 +56,10 @@ sed -i -e "s@.*$srcDataDir.*@$newDataDir@" util.cpp
 
 make -f makefile.unix USE_UPNP=-
 
-cd ~
-
 #Create the conf file with the rpcuser and rpcpasswords set
 
 rm -rf ~/.bceTESTING
 
-cd ~
 mkdir -p ~/.bceTESTING
 cd ~/.bceTESTING
 touch bcexchange.conf
@@ -63,6 +72,7 @@ cd "$src"
 
 sleep 15
 
+#read -p "Start parsing debug"
 
 #Parsing debug logs for needed strings
 cd ~/.bceTESTING
@@ -83,9 +93,12 @@ officialMerkleRoot=$(cat debug.log | grep "merkle root")
 IFS='=' read -a OffMerkRoot <<< "$officialMerkleRoot"
 merkRootString="${OffMerkRoot[1]}"
 
-#Now let's parse the testnet debug!!
 
-cd testnet
+echo "MerkleRoot= $merkRootString"
+echo "GenHashString= $genHashString"
+echo "NonceString= $NonceString"
+
+#read -p "Start parsing debug"
 
 #Completed parsing debug - begin substitution
 
@@ -95,36 +108,47 @@ sed -i -e "s@.*$srcHashGenesisBlockOfficial.*@static const uint256 hashGenesisBl
 
 sed -i -e "s@.*$srcDataDir.*@$newDataDir@" util.cpp
 
-sed -i -e "s@.*$srcPszTimestampOfficial.*@        const char* pszTimestamp = \"$RegularTime $RandomString\";@" \
+sed -i -e "s@.*$srcPszTimestampOfficial.*@        const char* pszTimestamp = \"$pzTimeStamp\";@" \
 -e "s@.*$srcOfficialNonce.*@        unsigned int nNonceGenesis=$NonceString;@" \
 -e "s@.*$srcTimeGenesisOfficial.*@        unsigned int nTimeGenesis=$EpochTime;@" \
--e "s@assert(block.hashMerkleRoot == uint256(\"0x$srcMerkleRootOfficial\"));@assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));@" main.cpp
+-e "s@assert(block.hashMerkleRoot == uint256(\"0x$srcMerkleRootOfficial\"));@assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));@" \
+-e "s@.*$srcReduceDiff.*@static CBigNum bnProofOfWorkLimit(~uint256(0) >> 13);@" \
+-e "s@.*$srcReduceDiff2.*@static CBigNum bnInitialHashTarget(~uint256(0) >> 19);@" main.cpp
+
+sed -i -e "s@.*$srcV3Switch.*@unsigned int nProtocolV03SwitchTime     = $EpochTimeSwitch;@" \
+-e "s@.*$srcV4Switch.*@unsigned int nProtocolV04SwitchTime     = $EpochTimeSwitch;@" \
+-e "s@.*$srcChecsumCheckoint.*@    return true;@" \
+-e "s@.*$srcDifficulty.*@    if ((CBigNum(hashProofOfStake) >> 10) > bnCoinDayWeight \* bnTargetPerCoinDay)@" \
+-e "s@.*$srcWeightFix.*@unsigned int nWeightFixSwitchTime = $EpochTimeSwitch;@" kernel.cpp
 
 
-#need to fix this so i don't have to update the merkelroot when it changes. All other lines that need to be changed can be found dynamicaly.
-
-#cat main.cpp | tr '\n' '@' | sed -e "s/"@$srcMerkleRootOfficial.*@"/            assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));/1" \
-#-e "s/@$srcMerkleRootTestNet.*@/            assert(block.hashMerkleRoot == uint256(\"0x$merkRootStringTest\"));/2" | tr '@' '\n' > main.cppp
-
+#read -p "Start compile of customized binaries"
 
 make -f makefile.unix USE_UPNP=-
 
+cp -rf bcexchanged $CurDir
+
 cd ..
 
-#Making the GUI as well
-
-#qmake
+qmake
 
 make USE_UPNP=-
 
+cp -rf bcexchange $CurDir
+
 rm -rf ~/.bceTESTING
+
+cd $CurDir
+
+./buildcontainer
+./startcontainer
+
+./nu
 
 echo "MerkleRoot= $merkRootString"
 echo "GenHashString= $genHashString"
 echo "NonceString= $NonceString"
-echo "TestMerkleRoot= $merkRootStringTest"
-echo "TestGenHashString= $genHashStringTest"
-echo "TestNonceString= $NonceStringTest"
+
 
 
 
