@@ -33,14 +33,20 @@ RandomString=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 pzTimeStamp="$RegularTime $RandomString"
 
 
+
+
 #take in the location to the source as parameter"
 src=$1/src
 if [ -z "$1" ]; then 
 echo "please provide path to folder as parameter" && exit 
 fi #END PATH CHECK
 
-#change working directory to source folder
+#we do a lot of time traveling so it's best to start clean.
 cd "$src"
+make -f makefile.unix clean
+pushd ..
+make clean
+popd
 
 echo \##########################################
 echo \########Creating New Genesis Block########
@@ -111,18 +117,20 @@ sed -i -e "s@.*$srcPszTimestampOfficial.*@        const char* pszTimestamp = \"$
 -e "s@assert(block.hashMerkleRoot == uint256(\"0x$srcMerkleRootOfficial\"));@assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));@" \
 -e "s@.*$srcReduceDiff2.*@static CBigNum bnInitialHashTarget(~uint256(0) >> 21);@" main.cpp
 
-sed -i -e "s@.*$srcV3Switch.*@unsigned int nProtocolV03SwitchTime     = $EpochTimeSwitch;@" \
--e "s@.*$srcV4Switch.*@unsigned int nProtocolV04SwitchTime     = $EpochTimeSwitch;@" \
--e "s@.*$srcChecsumCheckoint.*@    return true;@" \
--e "s@.*$srcDifficulty.*@    if ((CBigNum(hashProofOfStake) >> 10) > bnCoinDayWeight \* bnTargetPerCoinDay)@" \
--e "s@.*$srcWeightFix.*@unsigned int nWeightFixSwitchTime = $EpochTimeSwitch;@" kernel.cpp
+sed -i -e "s@.*$srcDifficulty.*@    if ((CBigNum(hashProofOfStake) >> 10) > bnCoinDayWeight \* bnTargetPerCoinDay)@" kernel.cpp
+# -e "s@.*$srcV3Switch.*@unsigned int nProtocolV03SwitchTime     = $EpochTimeSwitch;@" \
+#-e "s@.*$srcV4Switch.*@unsigned int nProtocolV04SwitchTime     = $EpochTimeSwitch;@" \
+#-e "s@.*$srcChecsumCheckoint.*@    return true;@" \
+#
+#-e "s@.*$srcWeightFix.*@unsigned int nWeightFixSwitchTime = $EpochTimeSwitch;@" kernel.cpp
 
-sed -i -e "s@.*        ( 400, uint256(\"0000007fc7c821f380229899556b79bc37124c6b0059e3b84bae0df20c1783ba\") )
-.*@@" checkpoints.cpp
+sed -i -e "s@.*        ( 400, uint256(\"0000007fc7c821f380229899556b79bc37124c6b0059e3b84bae0df20c1783ba\") ).*@@" checkpoints.cpp
 
 sed -i -e "s@.*    0xb40f043e,.*@@" \
 -e "s@.*    0x22828268,.*@@" \
--e "s@.*    0x4b7109b0,.*@@" net.cpp
+-e "s@.*    0x4b7109b0,.*@@" \
+-e "s@.*    0x2c0fd23e,.*@@" \
+-e "s@.*    0x294109b0,.*@@" net.cpp
 
 #read -p "Start compile of customized binaries"
 
