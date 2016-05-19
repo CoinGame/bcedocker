@@ -10,6 +10,12 @@ srcOfficialNonce="        unsigned int nNonceGenesis="
 srcTimeGenesisOfficial="        unsigned int nTimeGenesis="
 srcPszTimestampOfficial=" pszTimestamp = "
 srcMerkleRootOfficial="5f6d3c86c39f07715fb73cc5cf3a8a11a59f4e6b77547675f519a4a5d11f4a1a"
+
+srcMerkleRootTestNet="d044ad667adb2ec5073dc2f033f8ed9458f92515eb13310fb1fccfb4242cf31d"
+srcPszTimestampTestnet="            pszTimestamp="
+srcTimeGenesisTestnet="            nTimeGenesis="
+srcHashGenesisBlockTestNet="static const uint256 hashGenesisBlockTestNet("
+
 srcV3Switch="unsigned int nProtocolV03SwitchTime     = 1405987200; // Tue, 22 Jul 2014 00:00:00 GMT"
 srcV4Switch="unsigned int nProtocolV04SwitchTime     = 1406030400; // Tue, 22 Jul 2014 12:00:00 GMT"
 srcWeightFix="unsigned int nWeightFixSwitchTime = 1408924800; // 2014-08-25 00:00:00 UTC"
@@ -41,16 +47,11 @@ if [ -z "$1" ]; then
 echo "please provide path to folder as parameter" && exit 
 fi #END PATH CHECK
 
-#we do a lot of time traveling so it's best to start clean.
-cd "$src"
-make -f makefile.unix clean
-pushd ..
-make clean
-popd
-
 echo \##########################################
 echo \########Creating New Genesis Block########
 echo \##########################################
+cd $src
+
 sed -i -e "s@$srcPszTimestampOfficial.*@ pszTimestamp = \"$pzTimeStamp\";@" \
 -e "s@$srcTimeGenesisOfficial.*@        unsigned int nTimeGenesis=$EpochTime;@" \
 -e "s@$srcOfficialNonce.*@        unsigned int nNonceGenesis=0;@" main.cpp
@@ -96,6 +97,26 @@ officialMerkleRoot=$(cat debug.log | grep "merkle root")
 IFS='=' read -a OffMerkRoot <<< "$officialMerkleRoot"
 merkRootString="${OffMerkRoot[1]}"
 
+#Now let's parse the testnet debug!!
+
+cd testnet
+
+#Genesis Hash
+testnetGenHash=$(cat debug.log | grep "genesis hash")
+IFS='=' read -a testGenHash <<< "$testnetGenHash"
+genHashStringTest="${testGenHash[1]}"
+
+#Nonce
+testnetNonce=$(cat debug.log | grep "nNonce")
+IFS=',' read -a TestNonce <<< "$testnetNonce"
+IFS='=' read -a TestNonce2 <<< "${TestNonce[6]}"
+NonceStringTest="${TestNonce2[1]}"
+
+#Merkle Root
+testMerkleRoot=$(cat debug.log | grep "merkle root")
+IFS='=' read -a TestMerkRoot <<< "$testMerkleRoot"
+merkRootStringTest="${TestMerkRoot[1]}"
+
 
 echo "MerkleRoot= $merkRootString"
 echo "GenHashString= $genHashString"
@@ -115,7 +136,11 @@ sed -i -e "s@.*$srcPszTimestampOfficial.*@        const char* pszTimestamp = \"$
 -e "s@.*$srcOfficialNonce.*@        unsigned int nNonceGenesis=$NonceString;@" \
 -e "s@.*$srcTimeGenesisOfficial.*@        unsigned int nTimeGenesis=$EpochTime;@" \
 -e "s@assert(block.hashMerkleRoot == uint256(\"0x$srcMerkleRootOfficial\"));@assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));@" \
--e "s@.*$srcReduceDiff2.*@static CBigNum bnInitialHashTarget(~uint256(0) >> 21);@" main.cpp
+-e "s@.*$srcReduceDiff2.*@static CBigNum bnInitialHashTarget(~uint256(0) >> 21);@" \
+-e "s@.*$srcPszTimestampTestnet.*@            pszTimestamp=\"$pzTimeStamp\";@" \
+-e "s@.*$srcTestnetNonce.*@            nNonceGenesis=$NonceString;@" main.cpp
+#-e "s@.*$srcTimeGenesisTestnet.*@            nTimeGenesis=$EpochTime;@"
+#-e "s@assert(block.hashMerkleRoot == uint256(\"0x$srcMerkleRootOfficial\"));@assert(block.hashMerkleRoot == uint256(\"0x$merkRootString\"));@" main.cpp
 
 sed -i -e "s@.*$srcDifficulty.*@    if ((CBigNum(hashProofOfStake) >> 10) > bnCoinDayWeight \* bnTargetPerCoinDay)@" kernel.cpp
 # -e "s@.*$srcV3Switch.*@unsigned int nProtocolV03SwitchTime     = $EpochTimeSwitch;@" \
@@ -150,8 +175,6 @@ rm -rf ~/.bceTESTING
 
 cd $CurDir
 
-./buildcontainer
-./startcontainer
 
 echo "MerkleRoot= $merkRootString"
 echo "GenHashString= $genHashString"

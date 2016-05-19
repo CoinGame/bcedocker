@@ -9,7 +9,7 @@ RUN apt-get install -y libcurl4-openssl-dev nano
 
 
 COPY ./bcexchanged /root/bcexchanged
-COPY bcexchange.conf /root/.bceTESTING/bcexchange.conf
+COPY bcexchange.conf /root/.bcexchange/bcexchange.conf
 
 RUN locale-gen en_US.UTF-8  
 ENV LANG en_US.UTF-8  
@@ -20,6 +20,8 @@ EXPOSE 2239
 EXPOSE 2240
 EXPOSE 2241
 EXPOSE 8332
+EXPOSE 12239
+EXPOSE 12240
 EXPOSE 22
 
 CMD /root/bcexchanged

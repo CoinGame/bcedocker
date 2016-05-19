@@ -6,7 +6,7 @@ sudo docker rm -f bcenode2
 sudo docker run --name "bcenode1" -t -d -P nodes
 sudo docker run --name "bcenode2" -t -d -P nodes
 
-cd ~/.bceTESTING
+cd ~/.bcexchange
 
 touch bcexchange.conf
 
@@ -26,14 +26,14 @@ echo listen=1 >> bcexchange.conf
 echo \#replace PORT with the docker port number that points to mainnet/testnet protocol port >> bcexchange.conf
 echo \#connect=127.0.0.1:PORT >> bcexchange.conf
 
-testnetProtocolPort=$(sudo docker port bcenode1 2239)
+testnetProtocolPort=$(sudo docker port bcenode1 12239)
 IFS=':' read -a ExposedTestnetProtocolPort <<< "$testnetProtocolPort"
 tnep="${ExposedTestnetProtocolPort[1]}"
 
 echo "addnode=127.0.0.1:$tnep"
 echo "addnode=127.0.0.1:$tnep" >> bcexchange.conf
 
-testnetProtocolPort=$(sudo docker port bcenode2 2239)
+testnetProtocolPort=$(sudo docker port bcenode2 12239)
 IFS=':' read -a ExposedTestnetProtocolPort <<< "$testnetProtocolPort"
 tnep="${ExposedTestnetProtocolPort[1]}"
 
